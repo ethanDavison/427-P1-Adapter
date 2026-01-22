@@ -73,7 +73,7 @@ class DHT11:
 
         # if bit count mismatch, return error (4 byte data + 1 byte checksum)
         if len(pull_up_lengths) != 40:
-            print('Incorrect data length: ', len(pull_up_lengths))
+            # print('Incorrect data length: ', len(pull_up_lengths))
             return DHT11Result(DHT11Result.ERR_MISSING_DATA, 0, 0)
 
         # calculate bits from lengths of the pull up periods
@@ -226,4 +226,6 @@ class DHT11:
         return the_bytes[0] + the_bytes[1] + the_bytes[2] + the_bytes[3] & 255
 
 
-main()
+# wrap this in main if, so wont get triggered by running from main.py
+if __name__ == "__main__":
+    main()
