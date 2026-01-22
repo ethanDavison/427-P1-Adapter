@@ -1,56 +1,47 @@
 import lgpio
 import time
 
-# I2C address of ADS1110
-ADS1110_ADDR = 0x48
+class ADS1110:
+    def __init__(self):
+        ### Config that Pach had ####
+        # I2C address of ADS1110
+        self.addr = 0x48 
+        # Value to write to the configuration register
+        self.config_value = 0b0_00_0_11_00
 
-# Value to write to the configuration register
-CONFIG_VALUE = 0b0_00_0_11_00 #0b0_00_1_11_00
-# continuous mode, no amplification, full resolution
-#
-# Initialize the connection to lgpio
-try:
-    # Open connection to the I2C port
-    handle = lgpio.i2c_open(1, ADS1110_ADDR)  
-    print(f"I2C connection to address 0x{ADS1110_ADDR:02x} opened.")
-
-    # Write data to the configuration register
-    result = lgpio.i2c_write_byte(handle, CONFIG_VALUE)
-    
-    if result == 0:
-        pass
-        #print(f"Configuration written: {CONFIG_VALUE}")
-    else:
-        print(f"Write error: code {result}")
-        raise IOError("Configuration write error")
-
-    # Time for conversion (may be required, check the datasheet)
-    time.sleep(0.1)
-
-    # Read 2 bytes (unchanged in this example)
-    while True:
-        # Read data from the device
-        count, data = lgpio.i2c_read_device(handle, 2)
+        # Pre set this value to -1 for checks below when reading the sensor value to avoid possible crash
+        self.handle = -1
         
-        if count == 2:
-            # Combine two bytes into one value (little-endian)
-            raw_value = (data[0] << 8) | data[1]
-            # two’s complement conversion
-            if raw_value & 0x8000:
-                raw_value -= 1 << 16
-            print(f'{raw_value:04x} ')
-        else:            
-            print(f"Read error. Read {count} bytes.")
+        try:
+            # Open connection to the I2C port
+            self.handle = lgpio.i2c_open(1, self.addr)
+            # Write data to the configuration register
+            lgpio.i2c_write_byte(self.handle, self.config_value)
+            # Time for conversion (may be required, check the datasheet)
+            time.sleep(0.1)
+        except Exception as e:
+            print(f"Configuration write error: {e}")
 
-        time.sleep(0.2)
+    # Moved Functionality into a function to read the "raw" sensor data
+    def read_raw(self):
+        if self.handle < 0:
+            return None
+        #### got rid of while Loop  
+        try:
+            # Read data from the device
+            count, data = lgpio.i2c_read_device(self.handle, 2)
+            if count == 2:
+                # Combine two bytes into one value (little-endian)
+                raw_value = (data[0] << 8) | data[1]
+                # two’s complement conversion
+                if raw_value & 0x8000:
+                    raw_value -= 1 << 16
+                return raw_value
+        except Exception:
+            return None
+        return None
 
-except IOError as e:
-    print(f"I/O error: {e}")
-except Exception as e:
-    print(f"An error occurred: {e}")
-
-finally:
     # Close the I2C connection
-    if handle >= 0:
-        lgpio.i2c_close(handle)
-    print("Connection to lgpio closed.")
+    def close(self):
+        if self.handle >= 0:
+            lgpio.i2c_close(self.handle)
