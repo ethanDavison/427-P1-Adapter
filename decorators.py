@@ -14,17 +14,16 @@ class RetryDecorator(TemperatureSensor):
         return None
 
 class FallbackDecorator(TemperatureSensor):
-    def __init__(self, primary: TemperatureSensor, secondary: TemperatureSensor, gpio_handle=None):
-        self._primary = primary
-        self._secondary = secondary
+    def __init__(self,sensors: list[TemperatureSensor], gpio_handle=None):
+        self._sensors = sensors
         self._gpio_handle = gpio_handle
 
     def get_temperature(self):
-        temp = self._primary.get_temperature()
-        if temp is None:
-            print("Primary sensor failed, falling back to secondary...")
-            return self._secondary.get_temperature()
-        return temp
+        for sensor in self._sensors:
+            temp = sensor.get_temperature()
+            if temp is None:
+                return temp
+            return None
 
     # dont know if this is supposed to be here, but moved it here so we can close for DHT11
     def cleanup(self):
