@@ -1,0 +1,15 @@
+
+ DHT config
+{
+    "mode": "dht11",
+    "pin": 21,
+    "chip": 0
+}
+
+ADS config
+{
+
+    "mode": "ads",
+    "lm_type": "LM35"
+
+}

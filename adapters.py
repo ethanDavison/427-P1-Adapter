@@ -17,12 +17,13 @@ class ADSAdapter(TemperatureSensor):
         for attempt in range(3):
             try:
                 raw = self.driver.read_raw()
-                # I could be wrong on this but 1st convert raw to volatage
-                # 32767 is Max code for 16-bit, Internal Referenace Volatage 
-                vol = raw / 32767 * 2.048
-                # 1 vol = 1000mV, and 10mV per Degree Cel
-                temp_c = vol * 1000 / 10
-                return temp_c
+                if raw != None:
+                    # I could be wrong on this but 1st convert raw to volatage
+                    # 32767 is Max code for 16-bit, Internal Referenace Volatage 
+                    vol = raw / 32767 * 2.048
+                    # 1 vol = 1000mV, and 10mV per Degree Cel
+                    temp_c = vol * 1000 / 10
+                    return temp_c
             except:
                 pass
             # cant hurt to wait a lil bit between calls
