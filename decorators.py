@@ -21,7 +21,7 @@ class FallbackDecorator(TemperatureSensor):
     def get_temperature(self):
         for sensor in self._sensors:
             temp = sensor.get_temperature()
-            if temp is None:
+            if temp is not None:
                 return temp
             return None
 
