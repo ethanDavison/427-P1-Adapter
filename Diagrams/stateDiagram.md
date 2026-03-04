@@ -2,33 +2,42 @@
 stateDiagram-v2
     [*] --> Idle
 
-    Idle --> Initialized : Program starts<br/>GPIO chip opened, sensor instances created
+    Idle --> Initialized : Program starts Config loaded, SensorFactory builds decorator stack
 
-    %% First we try to read DHT sensor
-    Initialized --> ReadingDHT : get_temperature() called on digital sensor
+    %% First we try to read the primary sensor (order set by config)
+    Initialized --> ReadingPrimary : get_temperature() called on FallbackDecorator
 
-    %% If that sensor reading == NONE, then we result to Analog sensor
-    ReadingDHT --> DataValid : DHT sensor returns valid temperature
+    %% RetryDecorator attempts up to 3 times before giving up
+    ReadingPrimary --> RetryingPrimary : Primary sensor returns None
+    RetryingPrimary --> ReadingPrimary : Retry attempt (up to 3 times)
 
-    %% DHT reading == NONE
-    ReadingDHT --> ReadingAnalog : DHT sensor failed (returns None)
+    %% If all retries fail, FallbackDecorator moves to secondary sensor
+    RetryingPrimary --> ReadingFallback : All retries exhausted
 
-    %% Analog Sensor gets a reading (we assume correct)
-    ReadingAnalog --> DataValid : Analog sensor returns temperature
+    %% Primary sensor got a valid reading
+    ReadingPrimary --> DataValid : Primary sensor returns valid temperature
 
-    %% Each tempture reading in Loop will first try to be from DHT sensor
-    DataValid --> ReadingDHT : Next measurement (0.1s delay)
+    %% Fallback sensor also gets up to 3 retries
+    ReadingFallback --> RetryingFallback : Fallback sensor returns None
+    RetryingFallback --> ReadingFallback : Retry attempt (up to 3 times)
 
-    %% So because all the sensor reading happens in a True loop, KeyboardInterrupt could happen at any step
+    %% Fallback sensor got a valid reading
+    ReadingFallback --> DataValid : Fallback sensor returns valid temperature
 
-    ReadingDHT --> Closed : KeyboardInterrupt
+    %% If fallback also exhausts all retries, returns None and main loop retries next tick
+    RetryingFallback --> ReadingPrimary : Fallback all retries exhausted (returns None)Next measurement (0.1s delay)
 
-    ReadingAnalog --> Closed : KeyboardInterrupt
+    %% Each temperature reading in loop will first try primary sensor
+    DataValid --> ReadingPrimary : Next measurement (0.1s delay)
 
+    %% Because all sensor reading happens in a True loop, KeyboardInterrupt could happen at any step
+    ReadingPrimary --> Closed : KeyboardInterrupt
+    RetryingPrimary --> Closed : KeyboardInterrupt
+    ReadingFallback --> Closed : KeyboardInterrupt
+    RetryingFallback --> Closed : KeyboardInterrupt
     DataValid --> Closed : KeyboardInterrupt
-
     Initialized --> Closed : KeyboardInterrupt
 
-    Closed --> [*] : GPIO chip closed
+    Closed --> [*] : GPIO chip closed, sensors shut down
 
 ```

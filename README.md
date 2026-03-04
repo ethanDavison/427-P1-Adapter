@@ -1,36 +1,145 @@
-# 427 Project 1 - Hardware Abstraction with Adapter, Factory, and Decorator Patterns
+---
+marp: true
+theme: default
+paginate: true
+backgroundColor: #676767
+color: #eaeaea
+style: |
+  section {
+    font-family: 'Consolas', monospace;
+    background-color: #1e1e2e;
+    padding: 40px 60px;
+  }
+  h1 { color: #c0caf5; font-size: 2em; }
+  h2 { color: #c0caf5; border-bottom: 2px solid #414868; padding-bottom: 8px; }
+  h3 { color: #a9b1d6; }
+  code { background: #24283b; padding: 2px 8px; border-radius: 4px; color: #7aa2f7; }
+  pre { background: #24283b; border-left: 4px solid #414868; padding: 16px; border-radius: 8px; }
+  strong { color: #7aa2f7; }
+  em { color: #a9b1d6; }
+---
 
-## System Overview
+# Temperature Sensor System
 
-This system takes the temperature reading from either a digital temperature sensor or an analog temperature sensor, or both, and displays a single syncronized result.
+## Adapter + Factory + Decorator
 
-- This solves the problem that multiple sensors create, as two different results needs to be translated differently, but this system can read both.
-- Supported sensors include: ADS1110, DHT11.
-- The client of the system is whomever receives the synced temperature reading from the adapter pattern.
+**Using DHT11 and ADS sensors to read temperature from a Raspberry Pi**
 
-The design uses many patterns:
-- An adapter pattern, to check for inputs from each type of sensor in case one is attached instead of the other,
-- A factory pattern, with a configuration file that selects the prefered sensor and creates a single sensor object to encase it, and
-- A decorator pattern, to add a Retry decoration (if get_temperature fails, it will retry a select amount of times), and a list-based Fallback decorator (when one sensor fails, it will go other sensors available in the list).
+---
 
-## UML Diagrams
+## Previous Project - Adapter & Simple Factory Summary
 
-### Use Case Diagram
+### Adapter Pattern
 
-![](Diagrams/useCaseDiagram.png)
+- `DHTAdapter` and `ADSAdapter` both implement `get_temperature()` via the shared `TemperatureSensor` base class
+- Each adapter retries up to 3 times before returning `None`
+- `main.py` talks to either sensor the same way
 
-### Activity Diagram
+### Simple Factory
 
-![](Diagrams/activityDiagram.png)
+- `SensorFactory.create_sensor(config)` reads `config.json` and wraps two sensors in `FallbackTemperatureSensor`
+  - if primary returns `None`, it tries secondary sensor for redundancy
+- `main.py` only imports `SensorFactory`
 
-### Sequence Diagram
+---
 
-![](Diagrams/sequenceDiagram.png)
+## Adapter & Simple Factory - Result & Issue
 
-### Class Diagram
+### Result
 
-![](Diagrams/classDiagram.png)
+- Object creation fully isolated from `main.py`
+- `main.py` just calls `sensor.get_temperature()`
+- No hardware knowledge in the application layer
 
-### State Diagram
+### But...
 
-![](Diagrams/stateDiagram.png)
+- The factory is multitasking
+  - It creates sensors **AND** owns the fallback logic
+- The adapters are multitasking
+  - They read hardware **AND** handle retries
+
+---
+
+## Decorator Pattern - Why
+
+### What is the Decorator Pattern?
+
+- Wraps an existing object to add **new** behaviour
+  - without modifying it
+- Each decorator has **ONLY** one responsibility
+  - seperation of concerns
+- Decorators implement the **same** interface as what they wrap
+  - interchangeable
+
+### Why this fixes our problem
+
+- Retry logic moves out of the adapters into `RetryDecorator`
+  - adapters only read hardware now, **LESS** logic
+- Fallback logic moves out of the factory into `FallbackDecorator`
+  - **LESS** logic
+- Both decorators wrap any `TemperatureSensor` — not tied to specific hardware
+
+---
+
+## Decorator Pattern - Implementation
+
+### Summary
+
+- `RetryDecorator` : wraps any `TemperatureSensor`, retries up to **N** times before returning `None`
+- `FallbackDecorator` : takes a **list** of sensors, tries each one in order until it gets a reading
+- Adapters **stripped** of retry logic
+
+### Result
+
+- Factory just assembles everything together
+- `main.py` unchanged
+  - still just calls `sensor.get_temperature()`
+- Adding a new sensor is **easy**, just add to the list
+
+---
+
+## Why Retry and Fallback are Separate Decorators
+
+- Retry and Fallback are **two different responsibilities**
+
+- `RetryDecorator` only checks for reading from a sensor up to **N** times
+- `FallbackDecorator` only moves to next sensor in the list
+- If combined, would lead to multitasking which violates SRP
+
+---
+
+## How the Architecture Changed
+
+### Before
+
+- Retry logic lived inside each adapter in `adapters.py`
+- Fallback logic lived inside the factory as `FallbackTemperatureSensor`
+
+### After
+
+- Adapters only read hardware, **LESS** logic
+- `RetryDecorator` wraps any sensor and handles retries
+- `FallbackDecorator` wraps a list of sensors and handles fallback
+- Factory **only** assembles
+
+---
+
+## How SRP is Satisfied
+
+- `DHTAdapter` / `ADSAdapter` : **read hardware**
+- `RetryDecorator` : **retry on failure**
+- `FallbackDecorator` : **try next sensor on failure**
+- `SensorFactory` : **assemble the object**
+- `main.py` : **read and print temperature**
+
+---
+
+## Diagrams
+
+Please refer to Diagrams folder as some are too large to put in this `README.md` file. The diagrams consist of:
+
+- Activity Diagram
+- Class Diagram
+- Sequence Diagram
+- State Diagram
+- Usecase Diagram
