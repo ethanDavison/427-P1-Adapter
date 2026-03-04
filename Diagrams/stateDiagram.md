@@ -2,33 +2,26 @@
 stateDiagram-v2
     [*] --> Idle
 
-    Idle --> Initialized : Program starts<br/>GPIO chip opened, sensor instances created
+    Idle --> Configuring : Load config.json
 
-    %% First we try to read DHT sensor
-    Initialized --> ReadingDHT : get_temperature() called on digital sensor
+    Configuring --> Initialized : SensorFactory builds FallbackTemperatureSensor
 
-    %% If that sensor reading == NONE, then we result to Analog sensor
-    ReadingDHT --> DataValid : DHT sensor returns valid temperature
+    Initialized --> ReadingPrimary : get_temperature() called
 
-    %% DHT reading == NONE
-    ReadingDHT --> ReadingAnalog : DHT sensor failed (returns None)
+    ReadingPrimary --> DataValid : Primary sensor returns valid temperature
 
-    %% Analog Sensor gets a reading (we assume correct)
-    ReadingAnalog --> DataValid : Analog sensor returns temperature
+    ReadingPrimary --> ReadingFallback : Primary sensor failed (returns None)
 
-    %% Each tempture reading in Loop will first try to be from DHT sensor
-    DataValid --> ReadingDHT : Next measurement (0.1s delay)
+    ReadingFallback --> DataValid : Secondary sensor returns temperature
 
-    %% So because all the sensor reading happens in a True loop, KeyboardInterrupt could happen at any step
+    ReadingFallback --> ReadingPrimary : Both failed, next loop (0.1s delay)
 
-    ReadingDHT --> Closed : KeyboardInterrupt
+    DataValid --> ReadingPrimary : Next measurement (0.1s delay)
 
-    ReadingAnalog --> Closed : KeyboardInterrupt
-
+    ReadingPrimary --> Closed : KeyboardInterrupt
+    ReadingFallback --> Closed : KeyboardInterrupt
     DataValid --> Closed : KeyboardInterrupt
-
     Initialized --> Closed : KeyboardInterrupt
 
-    Closed --> [*] : GPIO chip closed
-
+    Closed --> [*] : sensor.cleanup()
 ```

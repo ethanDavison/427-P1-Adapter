@@ -1,48 +1,105 @@
-# 427 Project 1 - Hardware Abstraction with Adapter Pattern
+---
+marp: true
+theme: default
+paginate: true
+mermaid: true
+backgroundColor: #676767
+color: #eaeaea
+style: |
+  section {
+    font-family: 'Consolas', monospace;
+    background-color: #1e1e2e;
+    padding: 40px 60px;
+  }
+  h1 { color: #c0caf5; font-size: 2em; }
+  h2 { color: #c0caf5; border-bottom: 2px solid #414868; padding-bottom: 8px; }
+  h3 { color: #a9b1d6; }
+  code { background: #24283b; padding: 2px 8px; border-radius: 4px; color: #7aa2f7; }
+  pre { background: #24283b; border-left: 4px solid #414868; padding: 16px; border-radius: 8px; }
+  strong { color: #7aa2f7; }
+  em { color: #a9b1d6; }
+---
 
-## System Overview
+# Temperature Sensor System
 
-This system takes the temperature reading from either a digital temperature sensor or an analog temperature sensor, or both, and displays a single syncronized result.
+## Adapter → Factory
 
-- This solves the problem that multiple sensors create, as two different results needs to be translated differently, but this system can read both.
-- Supported sensors include: ADS1110, DHT11.
-- The design uses an adapter pattern to check for inputs from each type of sensor in case one is attached instead of the other. It also can swap to a secondary sensor in the case that one malfunctions.
-- The client of the system is whomever receives the synced temperature reading from the adapter pattern.
+**Using DHT11 and ADS sensors to read temperature from a Raspberry Pi**
 
-## UML Diagrams
+---
 
-### Use Case Diagram
+## Previous Project — Adapter Pattern
 
-![](Diagrams/useCaseDiagram.png)
+### Problem
 
-### Activity Diagram
+`main.py` called two completely different sensor libraries directly
 
-![](Diagrams/activityDiagram.png)
+### What We Did
 
-### Sequence Diagram
+- Created `adapters.py`
+- Implemented `DHTAdapter` (digital) and `ADSAdapter` (analog)
+- Both implement `get_temperature()` from a shared `TemperatureSensor` base class
 
-![](Diagrams/sequenceDiagram.png)
+### Result
 
-### Class Diagram
+`main.py` only called `sensor.get_temperature()`
 
-![](Diagrams/classDiagram.png)
+- no hardware knowledge.
 
-### State Diagram
+---
 
-![](Diagrams/stateDiagram.png)
+## The Problem — Tight Coupling in main.py
 
-## Robustness Improvement Discussion
+**main knew WAY too much:**
 
-In a scenario where a sensor read operation fails, instead of a reported failure with a swap to another available sensor, the system should:
+- Imports concrete hardware classes directly
+- Knows constructor arguments
+- Manages hardware initialization
+- Adding a third sensor = **modifying main**
 
-- Retry the read operation up to 3 times,
-- Wait a short time between retries, and
-- Only report failure if all retries fail.
+The main application layer should not know concrete implementations.
 
-Discussion:
+---
 
-At first glance, I thought the fix should go inside of main, as that is where we manually manage which sensor to use. However, after further thinking, the `main.py` file should not be aware of the sensor failing and implement retry logic. `main.py`'s only job is to recive data and display it. If we added the retry logic there, it would be a "patch" that covers up the issue, not prevents it. Furthermore if the logic was implemented inside the drivers.py files, that would not be smart as those files are supposed to be low level, read the sensors and report.
+## Solution — Simple Factory Pattern
 
-The logic is now implemented inside of the adapter class, or `adapters.py`. The entire point of the adapter classes is to provide an interface to work with the old code and new code. Each sensor now retrys up to three times in the `get_temperature()` function
+**Refactor object creation out of main entirely:**
 
-## Reflection
+- **Isolate** object creation logic into one place
+- **Remove** direct knowledge of concrete classes from main
+- **Improve** separation of responsibilities
+- **Prepare** the system for future extensions
+
+```python
+# main.py — after
+from sensor_factory import SensorFactory
+
+sensor = SensorFactory.create_sensor(config)
+```
+
+One import. No hardware knowledge. No constructor arguments.
+
+---
+
+## Why Object Creation is a Separate Responsibility
+
+**Creation logic changes for different reasons than application logic.**
+
+- Adding a new sensor = factory changes, main doesn't
+- Changing hardware init = factory changes, main doesn't
+- Swapping libraries = factory changes, main doesn't
+
+**Advantages of isolating hardware creation:**
+
+- One place to update when hardware changes
+- main is testable without real hardware
+- Factory can be swapped without touching application code
+- Future sensors added with zero impact on main
+
+If main creates objects, it owns the risk of every hardware change.
+
+---
+
+## Diagrams
+
+Please refer to Diagrams folder as some are too large to pur in this `README.md` file
