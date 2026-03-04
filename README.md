@@ -36,15 +36,15 @@ style: |
 
 ### What We Did
 
-- Created `adapters.py`
-- Implemented `DHTAdapter` (digital) and `ADSAdapter` (analog)
+- Created `adapters.py`, and adapter classes for both `DHT11` and `ANDS`
+- Baked in retry logic in both adapter classes
 - Both implement `get_temperature()` from a shared `TemperatureSensor` base class
 
 ### Result
 
-`main.py` only called `sensor.get_temperature()`
+- created instances of both sensors, and added them to a list
 
-- no hardware knowledge.
+- `main.py` only called `sensor.get_temperature()` on a instance in a list
 
 ---
 
@@ -88,9 +88,9 @@ One import. No hardware knowledge. No constructor arguments.
 
 **Creation logic changes for different reasons than application logic.**
 
-- Adding a new sensor = factory changes, main doesn't
-- Changing hardware init = factory changes, main doesn't
-- Swapping libraries = factory changes, main doesn't
+- Adding a new sensor = factory changes, main **doesn't**
+- Changing hardware init = factory changes, main **doesn't**
+- Swapping libraries = factory changes, main **doesn't**
 
 **Advantages of isolating hardware creation:**
 
@@ -105,4 +105,10 @@ If main creates objects, it owns the risk of every hardware change.
 
 ## Diagrams
 
-Please refer to Diagrams folder as some are too large to pur in this `README.md` file
+Please refer to Diagrams folder as some are too large to put in this `README.md` file. The diagrams consist of:
+
+- Activity Diagram
+- Class Diagram
+- Sequence Diagram
+- State Diagram
+- Usercase Diagram
