@@ -1,10 +1,14 @@
 import time
 from ads1110lgpio import ADS1110
 from dh11_lgpio import DHT11
+import lgpio
 
 # The Unifed Base Class
 class TemperatureSensor:
     def get_temperature(self):
+        pass
+
+    def cleanup(self):
         pass
 
 # Adapter for Analog 
@@ -33,6 +37,12 @@ class ADSAdapter(TemperatureSensor):
 class DHTAdapter(TemperatureSensor):
     def __init__(self, pin, gpio_handle):
         self.driver = DHT11(pin, gpio_handle)
+        self._gpio_handle = gpio_handle
+
+    def cleanup(self):
+        if self._gpio_handle is not None:
+            lgpio.gpiochip_close(self._gpio_handle)
+            self._gpio_handle = None
 
     def get_temperature(self):
         try:

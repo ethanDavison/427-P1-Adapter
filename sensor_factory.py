@@ -1,12 +1,7 @@
 import lgpio
-from adapters import ADSAdapter, DHTAdapter
+from adapters import ADSAdapter, DHTAdapter, TemperatureSensor
 from decorators import RetryDecorator, FallbackDecorator
 
-
-# existing base class
-class TemperatureSensor:
-    def get_temperature(self):
-        pass
 
 
 
@@ -22,11 +17,8 @@ class SensorFactory:
             RetryDecorator(DHTAdapter(pin=pin, gpio_handle=gpio_handle), retries=3),
             RetryDecorator(ADSAdapter(), retries=3),
             ]
-            # wrap these in retry Decorator class 
-            primary = RetryDecorator(DHTAdapter(pin=pin, gpio_handle=gpio_handle), retries=3)
-            secondary = RetryDecorator(ADSAdapter(), retries=3)
-            # return FallbackDecorator object with gpio Handle
-            return FallbackDecorator(sensors, gpio_handle=gpio_handle)
+            # return FallbackDecorator object 
+            return FallbackDecorator(sensors)
 
 
         # warp ADS sensor in retry Decorator object
@@ -36,8 +28,8 @@ class SensorFactory:
             RetryDecorator(ADSAdapter(), retries=3),
             RetryDecorator(DHTAdapter(pin=pin, gpio_handle=gpio_handle), retries=3)
             ]
-            # return FallbackDecorator object with gpio Handle
-            return FallbackDecorator(sensors, gpio_handle=gpio_handle)
+            # return FallbackDecorator object 
+            return FallbackDecorator(sensors)
 
         # Prolly config file is wrong, so make sure mode is correct in config.json
         else:
