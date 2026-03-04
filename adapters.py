@@ -19,6 +19,9 @@ class ADSAdapter(TemperatureSensor):
     def __init__(self):
         self.driver = ADS1110()
 
+    def close(self):
+        self.driver.close()
+
     def get_temperature(self):
         try:
             raw = self.driver.read_raw()
@@ -29,8 +32,8 @@ class ADSAdapter(TemperatureSensor):
                 # 1 vol = 1000mV, and 10mV per Degree Cel
                 temp_c = vol * 1000 / 10
                 return temp_c
-        except:
-            pass
+        except Exception as e: 
+            print(e)
         # cant hurt to wait a lil bit between calls
         time.sleep(0.1)
         return None
@@ -54,8 +57,8 @@ class DHTAdapter(TemperatureSensor):
                 # right now am only pulling out the temperature but could
                 # pull out the humidity as well and display that
                 return result.temperature
-        except:
-            pass
+        except Exception as e: 
+            print(e)
         # cant hurt to wait a lil bit between calls
         time.sleep(0.1)
         return None
