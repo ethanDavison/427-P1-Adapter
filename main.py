@@ -11,6 +11,9 @@ def load_config(path="config.json"):
 config = load_config()
 sensor = SensorFactory.create_sensor(config)
 
+# open sensors
+sensor.open()
+
 # where we get the temp reading
 try:
     while True:
@@ -20,5 +23,5 @@ try:
             print(f"Reading: {temp_f}°F")
         time.sleep(0.1)
 except KeyboardInterrupt:
-    sensor.cleanup()
+    sensor.close()
     print("Exiting.")

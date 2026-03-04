@@ -8,7 +8,10 @@ class TemperatureSensor:
     def get_temperature(self):
         pass
 
-    def cleanup(self):
+    def open(self):
+        pass
+
+    def close(self):
         pass
 
 # Adapter for Analog 
@@ -39,7 +42,7 @@ class DHTAdapter(TemperatureSensor):
         self.driver = DHT11(pin, gpio_handle)
         self._gpio_handle = gpio_handle
 
-    def cleanup(self):
+    def close(self):  
         if self._gpio_handle is not None:
             lgpio.gpiochip_close(self._gpio_handle)
             self._gpio_handle = None

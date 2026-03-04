@@ -11,8 +11,13 @@ class RetryDecorator(TemperatureSensor):
             if temp is not None:
                 return temp
         return None
-    def cleanup(self):
-        self._wrapped.cleanup()
+    
+    def open(self):
+        self._wrapped.open()
+
+    def close(self):
+        self._wrapped.close()
+
 
 class FallbackDecorator(TemperatureSensor):
     def __init__(self,sensors: list[TemperatureSensor]):
@@ -24,8 +29,11 @@ class FallbackDecorator(TemperatureSensor):
             if temp is not None:
                 return temp
         return None
-
-    # dont know if this is supposed to be here, but moved it here so we can close for DHT11
-    def cleanup(self):
+    
+    def open(self):
         for sensor in self._sensors:
-            sensor.cleanup()
+            sensor.open()
+
+    def close(self):
+        for sensor in self._sensors:
+            sensor.close()
