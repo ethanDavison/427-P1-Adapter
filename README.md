@@ -67,13 +67,16 @@ The main application layer should not know concrete implementations.
 
 - **Isolate** object creation logic into one place
 - **Remove** direct knowledge of concrete classes from main
+- **Read** Config file
 - **Improve** separation of responsibilities
 - **Prepare** the system for future extensions
 
 ```python
-# main.py — after
+# main.py
 from sensor_factory import SensorFactory
 
+# load our config and sensor from config
+config = load_config()
 sensor = SensorFactory.create_sensor(config)
 ```
 
