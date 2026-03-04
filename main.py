@@ -10,6 +10,7 @@ def load_config(path="config.json"):
 # load our config and sensor from config
 config = load_config()
 sensor = SensorFactory.create_sensor(config)
+sensor.open()
 
 # where we get the temp reading
 try:

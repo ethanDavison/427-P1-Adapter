@@ -17,6 +17,9 @@ class TemperatureSensor:
 # Adapter for Analog 
 class ADSAdapter(TemperatureSensor):
     def __init__(self):
+        self.driver = None
+    
+    def open(self):
         self.driver = ADS1110()
 
     def close(self):
@@ -42,8 +45,13 @@ class ADSAdapter(TemperatureSensor):
 # Adapter for the Digital
 class DHTAdapter(TemperatureSensor):
     def __init__(self, pin, gpio_handle):
-        self.driver = DHT11(pin, gpio_handle)
+        self.driver = None
+        self._pin = pin
         self._gpio_handle = gpio_handle
+
+
+    def open(self):
+        self.driver = DHT11(self._pin, self._gpio_handle)
 
     def close(self):  
         if self._gpio_handle is not None:
