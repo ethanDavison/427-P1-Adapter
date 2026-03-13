@@ -37,8 +37,7 @@ class ADSAdapter(TemperatureSensor):
                 return temp_c
         except Exception as e: 
             print(e)
-        # cant hurt to wait a lil bit between calls
-        time.sleep(0.1)
+
         return None
 
 
@@ -68,5 +67,4 @@ class DHTAdapter(TemperatureSensor):
         except Exception as e: 
             print(e)
         # cant hurt to wait a lil bit between calls
-        time.sleep(0.1)
         return None
