@@ -1,6 +1,7 @@
 import lgpio
 from adapters import ADSAdapter, DHTAdapter, TemperatureSensor
 from decorators import RetryDecorator, FallbackDecorator
+from smart_sensor import SmartSensor, MeanFilter
 
 
 
@@ -14,8 +15,8 @@ class SensorFactory:
         if mode == "dht11":
             gpio_handle = lgpio.gpiochip_open(chip)
             sensors = [
-            RetryDecorator(DHTAdapter(pin=pin, gpio_handle=gpio_handle), retries=3),
-            RetryDecorator(ADSAdapter(), retries=3),
+            RetryDecorator(SmartSensor(DHTAdapter(pin=pin, gpio_handle=gpio_handle),MeanFilter()), retries=3),
+            RetryDecorator(SmartSensor(ADSAdapter(),MeanFilter()), retries=3),
             ]
             # return FallbackDecorator object 
             return FallbackDecorator(sensors)
@@ -25,8 +26,8 @@ class SensorFactory:
         elif mode == "ads":
             gpio_handle = lgpio.gpiochip_open(chip)
             sensors = [
-            RetryDecorator(ADSAdapter(), retries=3),
-            RetryDecorator(DHTAdapter(pin=pin, gpio_handle=gpio_handle), retries=3)
+            RetryDecorator(SmartSensor(ADSAdapter(),MeanFilter()), retries=3),
+            RetryDecorator(SmartSensor(DHTAdapter(pin=pin, gpio_handle=gpio_handle),MeanFilter()), retries=3)
             ]
             # return FallbackDecorator object 
             return FallbackDecorator(sensors)

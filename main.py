@@ -19,7 +19,6 @@ try:
         if temp is not None:
             temp_f = round(temp * 1.8 + 32, 2)
             print(f"Reading: {temp_f}°F")
-        time.sleep(0.1)
 except KeyboardInterrupt:
     print("Exiting.")
 finally:
