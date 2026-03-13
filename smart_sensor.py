@@ -8,14 +8,29 @@ class FilterStrategy:
     def filter(self, buffer: list) -> float:
         pass
 
-# Decided to do mean
+# Mean
 class MeanFilter(FilterStrategy):
     # takes in buffer (list) sums all the values and dives by length to get average
     def filter(self, buffer: list) -> float:
         return sum(buffer) / len(buffer)
-    
-# if we wanted other methods add other classes below here
 
+# Median
+class MedianFilter(FilterStrategy):
+    def filter(self, buffer: list) -> float:
+        sorted_buffer = sorted(buffer)
+        mid = len(sorted_buffer) // 2
+        if len(sorted_buffer) % 2 == 0:
+            # average the two middle values
+            return (sorted_buffer[mid - 1] + sorted_buffer[mid]) / 2
+        else:
+            # middle value
+            return sorted_buffer[mid]  
+
+# Raw
+class RawPassFilter(FilterStrategy):
+    def filter(self, buffer: list) -> float:
+        # just return -1 index, last index or most recent
+        return buffer[-1]
 
 
 class SmartSensor(TemperatureSensor):
