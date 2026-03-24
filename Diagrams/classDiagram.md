@@ -1,5 +1,5 @@
 ```mermaid
- classDiagram
+classDiagram
     class TemperatureSensor {
         +get_temperature()
         +open()
@@ -18,6 +18,34 @@
         +__init__(pin, gpio_handle)
         +get_temperature()
         +close()
+    }
+
+    class SmartSensor {
+        -TemperatureSensor _sensor
+        -FilterStrategy _strategy
+        -list _buffer
+        -int _buffer_size
+        -list _timestamps
+        +__init__(sensor, strategy, buffer_size)
+        +get_temperature()
+        +open()
+        +close()
+    }
+
+    class FilterStrategy {
+        +filter(buffer)
+    }
+
+    class MeanFilter {
+        +filter(buffer)
+    }
+
+    class MedianFilter {
+        +filter(buffer)
+    }
+
+    class RawPassFilter {
+        +filter(buffer)
     }
 
     class RetryDecorator {
@@ -80,17 +108,26 @@
         allows hardware access to raspberry PI and GPIO pins
     }
 
-    %% So basically get_temperature in TemperatureSensor is just an interface to show how the function should look in ADSAdapter, DHTAdapter, and now the decorators too
-    TemperatureSensor <|-- ADSAdapter : inherit Temperature Sensor interface
-    TemperatureSensor <|-- DHTAdapter : inherit Temperature Sensor interface
-    TemperatureSensor <|-- RetryDecorator : inherit Temperature Sensor interface
-    TemperatureSensor <|-- FallbackDecorator : inherit Temperature Sensor interface
+    %% So basically get_temperature in TemperatureSensor is just an interface to show how the function should look in ADSAdapter, DHTAdapter, and now the decorators and Smart sensor too
+    TemperatureSensor <|-- ADSAdapter : inherit
+    TemperatureSensor <|-- DHTAdapter : inherit
+    TemperatureSensor <|-- SmartSensor : inherit
+    TemperatureSensor <|-- RetryDecorator : inherit
+    TemperatureSensor <|-- FallbackDecorator : inherit
 
     RetryDecorator <|-- TemperatureSensor : wraps
     FallbackDecorator <|-- TemperatureSensor : wraps list of
 
+    FilterStrategy <|-- MeanFilter : inherit
+    FilterStrategy <|-- MedianFilter : inherit
+    FilterStrategy <|-- RawPassFilter : inherit
+
+    SmartSensor ..> FilterStrategy : uses
+    SmartSensor ..> TemperatureSensor : wraps
+
     SensorFactory ..> FallbackDecorator : creates
     SensorFactory ..> RetryDecorator : creates
+    SensorFactory ..> SmartSensor : creates
     SensorFactory ..> ADSAdapter : creates
     SensorFactory ..> DHTAdapter : creates
 

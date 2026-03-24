@@ -14,15 +14,16 @@ stateDiagram-v2
     %% If all retries fail, FallbackDecorator moves to secondary sensor
     RetryingPrimary --> ReadingFallback : All retries exhausted
 
-    %% Primary sensor got a valid reading
-    ReadingPrimary --> DataValid : Primary sensor returns valid temperature
+    %% Primary sensor got a valid reading, SmartSensor buffers and filters it
+    ReadingPrimary --> Buffer list : Primary sensor returns valid temperature
+    Buffer list --> DataValid : Buffer updated, Filter Strategy applied
 
     %% Fallback sensor also gets up to 3 retries
     ReadingFallback --> RetryingFallback : Fallback sensor returns None
     RetryingFallback --> ReadingFallback : Retry attempt (up to 3 times)
 
-    %% Fallback sensor got a valid reading
-    ReadingFallback --> DataValid : Fallback sensor returns valid temperature
+    %% Fallback sensor got a valid reading, SmartSensor buffers and filters it
+    ReadingFallback --> Buffer list : Fallback sensor returns valid temperature
 
     %% If fallback also exhausts all retries, returns None and main loop retries next tick
     RetryingFallback --> ReadingPrimary : Fallback all retries exhausted (returns None)Next measurement (0.1s delay)
@@ -35,6 +36,7 @@ stateDiagram-v2
     RetryingPrimary --> Closed : KeyboardInterrupt
     ReadingFallback --> Closed : KeyboardInterrupt
     RetryingFallback --> Closed : KeyboardInterrupt
+    Buffer list --> Closed : KeyboardInterrupt
     DataValid --> Closed : KeyboardInterrupt
     Initialized --> Closed : KeyboardInterrupt
 
