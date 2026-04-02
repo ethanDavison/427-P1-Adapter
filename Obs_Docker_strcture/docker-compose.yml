@@ -1,0 +1,21 @@
+version: "3.9"
+services:
+  brain:
+    build: ./brain
+    ports:
+      - "5000:5000"
+    networks:
+      - iot-net
+
+  web:
+    build: ./web
+    depends_on:
+      - brain
+    ports:
+      - "8080:8080"
+    networks:
+      - iot-net
+
+networks:
+  iot-net:
+    driver: bridge

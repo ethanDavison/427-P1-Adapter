@@ -1,5 +1,8 @@
 {
   "mode": "dht11",
   "pin": 21,
-  "chip": 0
+  "chip": 0,
+  "pi_id": "Pi_A",
+  "brain_host": "192.168.1.45",
+  "brain_port": 5000
 }

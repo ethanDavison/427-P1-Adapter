@@ -1,15 +1,20 @@
 
+** brain_host - must be computers local IPv4 address
  DHT config
 {
     "mode": "dht11",
     "pin": 21,
-    "chip": 0
+    "chip": 0,
+    "pi_id": "Pi_A",
+    "brain_host": "10.66.99.1",
+    "brain_port": 5000
 }
 
 ADS config
 {
-
     "mode": "ads",
-    "lm_type": "LM35"
-
+    "lm_type": "LM35",
+    "pi_id": "Pi_A",
+    "brain_host": "10.66.99.1",
+    "brain_port": 5000
 }
