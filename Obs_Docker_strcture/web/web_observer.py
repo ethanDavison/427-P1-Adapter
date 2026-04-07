@@ -13,18 +13,14 @@ def listen_to_brain():
     time.sleep(3)
     while True:
         try:
-            # establich TCP socket
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                # conenct on our speciried port with host 
                 s.connect((BRAIN_HOST, BRAIN_PORT))
-                while True:
-                    # we recieive bytes from pi
-                    data = s.recv(1024)
-                    if not data:
+                # Treat socket as a file to read line by line
+                f = s.makefile('r', encoding='utf-8')
+                for line in f:
+                    if not line:
                         break
-                    # decode bytes to string then parse as JSON
-                    parsed = json.loads(data.decode())
-                    # overwrite last previous data with current data
+                    parsed = json.loads(line.strip())
                     latest_data[parsed["origin"]] = parsed
         except Exception as e:
             print(f"Retrying... {e}")

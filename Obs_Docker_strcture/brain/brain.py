@@ -23,8 +23,14 @@ class Brain:
     # push data to all registered observers
     def notify(self, data: dict):
         with self._lock:
+            dead = []
             for observer in self._observers:
-                observer.update(data)
+                try:
+                    observer.update(data)
+                except Exception:
+                    dead.append(observer)
+            for d in dead:
+                self._observers.remove(d)
 
     # listen for incoming Pi connections on port 5000
     def start_pi_server(self, port=5000):
@@ -46,21 +52,22 @@ class Brain:
         while True:
             # each observer gets its own thread
             conn, addr = server.accept()
-            print(f"Observer connected from {addr}")
             observer = SocketObserver(conn)
             self.attach(observer)
 
     # handle a single Pi connection, parse the JSON and notify observers
     def _handle_pi(self, conn):
         with conn:
-            data = b""
-            while chunk := conn.recv(1024):
-                data += chunk
-            try:
-                parsed = json.loads(data.decode())
-                self.notify(parsed)
-            except json.JSONDecodeError:
-                print("Failed to parse incoming data")
+            # Use makefile to treat the socket like a file with lines
+            f = conn.makefile('r', encoding='utf-8')
+            for line in f:
+                if not line:
+                    break
+                try:
+                    parsed = json.loads(line.strip())
+                    self.notify(parsed)
+                except json.JSONDecodeError:
+                    print("Failed to parse incoming data")
 
 
 # a socket based observer that the Brain pushes data to
@@ -68,12 +75,14 @@ class SocketObserver(ObserverInterface):
     def __init__(self, conn):
         self._conn = conn
 
-    # Brain calls this to push data to the observer
     def update(self, data: dict):
         try:
-            self._conn.sendall(json.dumps(data).encode())
+            # Add a newline so the receiver knows the message ended
+            message = json.dumps(data) + "\n"
+            self._conn.sendall(message.encode())
         except Exception as e:
             print(f"error: {e}")
+            raise e # Let notify() catch this to remove the dead observer
 
 
 if __name__ == "__main__":

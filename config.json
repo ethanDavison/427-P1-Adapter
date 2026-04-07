@@ -3,6 +3,6 @@
   "pin": 21,
   "chip": 0,
   "pi_id": "Pi_A",
-  "brain_host": "192.168.1.45",
+  "brain_host": "10.36.224.120",
   "brain_port": 5000
 }
