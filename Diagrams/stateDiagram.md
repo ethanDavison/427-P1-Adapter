@@ -1,45 +1,82 @@
 ```mermaid
 stateDiagram-v2
+
+
+    %% Raspberry Pi states (sensor reading loop)
+ state Pi {
     [*] --> Idle
 
     Idle --> Initialized : Program starts Config loaded, SensorFactory builds decorator stack
 
-    %% First we try to read the primary sensor (order set by config)
     Initialized --> ReadingPrimary : get_temperature() called on FallbackDecorator
 
-    %% RetryDecorator attempts up to 3 times before giving up
     ReadingPrimary --> RetryingPrimary : Primary sensor returns None
     RetryingPrimary --> ReadingPrimary : Retry attempt (up to 3 times)
-
-    %% If all retries fail, FallbackDecorator moves to secondary sensor
     RetryingPrimary --> ReadingFallback : All retries exhausted
 
-    %% Primary sensor got a valid reading, SmartSensor buffers and filters it
-    ReadingPrimary --> Buffer list : Primary sensor returns valid temperature
-    Buffer list --> DataValid : Buffer updated, Filter Strategy applied
+    ReadingPrimary --> BufferUpdate : Primary sensor returns valid temperature
+    BufferUpdate --> DataReady : Buffer updated, Filter Strategy applied
 
-    %% Fallback sensor also gets up to 3 retries
     ReadingFallback --> RetryingFallback : Fallback sensor returns None
     RetryingFallback --> ReadingFallback : Retry attempt (up to 3 times)
 
-    %% Fallback sensor got a valid reading, SmartSensor buffers and filters it
-    ReadingFallback --> Buffer list : Fallback sensor returns valid temperature
+    ReadingFallback --> BufferUpdate : Fallback sensor returns valid temperature
+    RetryingFallback --> ReadingPrimary : All retries exhausted (returns None) Next measurement after delay
 
-    %% If fallback also exhausts all retries, returns None and main loop retries next tick
-    RetryingFallback --> ReadingPrimary : Fallback all retries exhausted (returns None)Next measurement (0.1s delay)
+    DataReady --> Sending : Package as JSON DTO
+    Sending --> ReadingPrimary : Sent successfully, next measurement
+    Sending --> ReadingPrimary : Send failed (Brain unreachable), next measurement
 
-    %% Each temperature reading in loop will first try primary sensor
-    DataValid --> ReadingPrimary : Next measurement (0.1s delay)
-
-    %% Because all sensor reading happens in a True loop, KeyboardInterrupt could happen at any step
     ReadingPrimary --> Closed : KeyboardInterrupt
     RetryingPrimary --> Closed : KeyboardInterrupt
     ReadingFallback --> Closed : KeyboardInterrupt
     RetryingFallback --> Closed : KeyboardInterrupt
-    Buffer list --> Closed : KeyboardInterrupt
-    DataValid --> Closed : KeyboardInterrupt
+    BufferUpdate --> Closed : KeyboardInterrupt
+    DataReady --> Closed : KeyboardInterrupt
+    Sending --> Closed : KeyboardInterrupt
     Initialized --> Closed : KeyboardInterrupt
 
     Closed --> [*] : GPIO chip closed, sensors shut down
 
+
+ }
+    %% Brain states
+
+
+    state Brain {
+        [*] --> BrainWaiting
+
+        BrainWaiting --> HandlingPi : Pi connects on port 5000 New thread spawned
+
+        HandlingPi --> Parsing : Data received from Pi
+        Parsing --> Notifying : Valid JSON parsed
+        Parsing --> HandlingPi : Malformed JSON, discard and continue
+
+        Notifying --> BroadcastOK : All observers updated successfully
+        Notifying --> ObserverCleaned : Dead observer detected during send Observer removed from list
+        BroadcastOK --> BrainWaiting
+        ObserverCleaned --> BrainWaiting
+
+        BrainWaiting --> ObserverRegistered : Web container connects on port 5001 SocketObserver attached to _observers
+        ObserverRegistered --> BrainWaiting
+    }
+
+
+    %% Web Container  states
+
+
+    state WebContainer {
+        [*] --> Connecting
+
+        Connecting --> Listening : Connected to Brain port 5001
+        Connecting --> Connecting : Connection refused, retry after delay
+
+        Listening --> Updating : JSON line received from Brain
+        Updating --> Listening : latest_data updated, continue listening
+
+        Listening --> Connecting : Brain disconnected, reconnect loop
+
+        Listening --> ServingHTTP : HTTP GET request arrives (parallel thread)
+        ServingHTTP --> Listening : 200 response sent with rendered table
+    }
 ```

@@ -1,5 +1,7 @@
 ```mermaid
 classDiagram
+
+    %% Sensor layer
     class TemperatureSensor {
         +get_temperature()
         +open()
@@ -10,6 +12,8 @@ classDiagram
         -ADS1110 driver
         +__init__()
         +get_temperature()
+        +open()
+        +close()
     }
 
     class DHTAdapter {
@@ -17,6 +21,7 @@ classDiagram
         -gpio _gpio_handle
         +__init__(pin, gpio_handle)
         +get_temperature()
+        +open()
         +close()
     }
 
@@ -102,21 +107,59 @@ classDiagram
         +is_valid()
     }
 
-    %% Not entirely sure how to show this, as its not a class but essential to this project to get readings
     class lgpio {
         external library
-        allows hardware access to raspberry PI and GPIO pins
+        allows hardware access to GPIO pins
     }
 
-    %% So basically get_temperature in TemperatureSensor is just an interface to show how the function should look in ADSAdapter, DHTAdapter, and now the decorators and Smart sensor too
+    %%  Observer / Networking layer
+
+    class ObserverInterface {
+        +update(data: dict)
+    }
+
+    class Brain {
+        -list _observers
+        -Lock _lock
+        +__init__()
+        +attach(observer: ObserverInterface)
+        +detach(observer: ObserverInterface)
+        +notify(data: dict)
+        +start_pi_server(port)
+        +start_observer_server(port)
+        -_handle_pi(conn)
+    }
+
+    class SocketObserver {
+        -socket _conn
+        +__init__(conn)
+        +update(data: dict)
+    }
+
+    class WebObserverClient {
+        -str host
+        -int port
+        -dict latest_data
+        +__init__(host, port)
+        +listen_to_brain()
+        +update(data: dict)
+    }
+
+    class TCPProducer {
+        Pi main.py sends JSON DTO
+        origin payload timestamp
+        +send_to_brain(temp, pi_id, host, port)
+    }
+
+    %% Sensor inheritance
     TemperatureSensor <|-- ADSAdapter : inherit
     TemperatureSensor <|-- DHTAdapter : inherit
     TemperatureSensor <|-- SmartSensor : inherit
     TemperatureSensor <|-- RetryDecorator : inherit
     TemperatureSensor <|-- FallbackDecorator : inherit
 
-    RetryDecorator <|-- TemperatureSensor : wraps
-    FallbackDecorator <|-- TemperatureSensor : wraps list of
+    RetryDecorator ..> TemperatureSensor : wraps
+    FallbackDecorator ..> TemperatureSensor : wraps list of
 
     FilterStrategy <|-- MeanFilter : inherit
     FilterStrategy <|-- MedianFilter : inherit
@@ -136,6 +179,14 @@ classDiagram
 
     ADS1110 ..> lgpio : relies on
     DHT11 ..> lgpio : relies on
-
     DHT11 ..> DHT11Result : creates/returns
+
+    %% Observer inheritance
+    ObserverInterface <|-- SocketObserver : inherit
+    ObserverInterface <|-- WebObserverClient : inherit
+
+    Brain ..> ObserverInterface : depends on interface
+    Brain ..> SocketObserver : creates on connection
+    TCPProducer ..> Brain : sends JSON via TCP port 5000
+    SocketObserver ..> WebObserverClient : pushes JSON via TCP port 5001
 ```

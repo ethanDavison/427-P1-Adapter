@@ -28,6 +28,7 @@ config = load_config()
 sensor = SensorFactory.create_sensor(config)
 sensor.open()
 
+
 PI_ID = config.get("pi_id", "Pi_A")
 BRAIN_HOST = config.get("brain_host", "192.168.1.45")
 BRAIN_PORT = config.get("brain_port", 5000)

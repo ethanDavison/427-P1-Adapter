@@ -1,25 +1,24 @@
 ```mermaid
 flowchart TD
-    USER(("**fa:fa-user** User"))
-
-    subgraph SYS["Rasp Pi Temp Monitoring Sys"]
-        UC1[/"Read Temperature"/]
-        UC2[/"Auto Select Sensor via Config"/]
-        UC3[/"Display Temperature"/]
-        UC4[/"Retry on Sensor Failure"/]
-        UC5[/"Fallback to Secondary Sensor"/]
+    subgraph DOCKER [Docker Host]
+        BRAIN[Brain Container]
+        WEB[Web Interface]
     end
 
-    UC0[/"Start Measurement"/]
-    UC6[/"Stop Measurement"/]
+    %% User Actions
+    USER((User)) -->|start docker| DOCKER
+    USER -->|2. View on port 8080| WEB
 
-    %% Relations
-    USER --> UC0
-    USER --> UC6
-    UC0 --> SYS
-    SYS --> UC2
-    UC2 --> UC1
-    UC1 --> UC4
-    UC4 --> UC5
-    UC5 --> UC3
+    %% Pi Logic
+    subgraph PI [Raspberry Pi]
+        SENSE[Select Sensor & Read]
+        RETRY[Retry / Fallback]
+        SEND[Send via TCP]
+
+        SENSE --> RETRY --> SEND
+    end
+
+    %% Connection
+    SEND --> BRAIN
+    BRAIN --> WEB
 ```
