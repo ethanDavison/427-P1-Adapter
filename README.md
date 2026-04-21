@@ -2,141 +2,177 @@
 marp: true
 theme: default
 paginate: true
-backgroundColor: #676767
-color: #eaeaea
+footer: "Software Architecture Presentations - Object Creation & Access Control"
 style: |
-  section {
-    font-family: 'Consolas', monospace;
-    background-color: #1e1e2e;
-    padding: 40px 60px;
+  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap");
+
+  :root {
+    font-family: "Work Sans Regular", Arial;
+    --main-color: #2c3e50;
+    --text-color: #2c3e50;
+    --bg-color-alt: #ffffff;
+    --mark-background: #aed6f1;
   }
-  h1 { color: #c0caf5; font-size: 2em; }
-  h2 { color: #c0caf5; border-bottom: 2px solid #414868; padding-bottom: 8px; }
-  h3 { color: #a9b1d6; }
-  code { background: #24283b; padding: 2px 8px; border-radius: 4px; color: #7aa2f7; }
-  pre { background: #24283b; border-left: 4px solid #414868; padding: 16px; border-radius: 8px; }
-  strong { color: #7aa2f7; }
-  em { color: #a9b1d6; }
+
+  section {
+    background-color: #ffffff;
+    background-size: 20px 20px;
+    background-image:
+      linear-gradient(#2c3e5012 1px, transparent 1px),
+      linear-gradient(to right, #2c3e5012 1px, #2c3e500a 1px);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--text-color);
+  }
+
+  header {
+    font-size: 0.7em;
+    color: var(--text-color);
+    border-bottom: 1px solid #2c3e50;
+  }
+
+  footer {
+    font-size: 0.7em;
+    color: var(--text-color);
+    border-top: 1px solid #2c3e50;
+  }
+
+  code {
+    background-color: #d5d8dc;
+    font-size: 0.9em;
+  }
+
+  pre {
+    background-color: #d5d8dc;
+  }
+
+  blockquote {
+    background: #d5d8dc;
+    border-left: 10px solid var(--main-color);
+    margin: 0.5em;
+    padding: 0.5em;
+  }
+
+  mark {
+    background-color: #5dade2;
+    padding: 0 2px 2px;
+  }
+
+  section::after {
+    font-size: 0.75em;
+    content: attr(data-marpit-pagination) " / " attr(data-marpit-pagination-total);
+    color: var(--text-color);
+  }
+
+  table {
+    display: block;
+    margin: 0 auto;
+  }
+
+  th {
+    background-color: #34495e;
+    color: white;
+  }
+
+  section.tinytext > p,
+  section.tinytext > ul,
+  section.tinytext > blockquote {
+    font-size: 0.65em;
+  }
+
+  img[alt~="center"] {
+    display: block;
+    margin: 0 auto;
+  }
 ---
 
 # Temperature Sensor System
 
-## Adapter + Factory + Decorator
+## Adapter + Factory + Decorator + **Strategy**
 
 **Using DHT11 and ADS sensors to read temperature from a Raspberry Pi**
 
 ---
 
-## Previous Project - Adapter & Simple Factory Summary
+## The Problem - Raw Data is Noisy
 
-### Adapter Pattern
+> _"The goal of this phase is to move from 'raw data reading' to 'signal processing.'"_
 
-- `DHTAdapter` and `ADSAdapter` both implement `get_temperature()` via the shared `TemperatureSensor` base class
-- Each adapter retries up to 3 times before returning `None`
-- `main.py` talks to either sensor the same way
+- A single hardware reading can be wrong - noise, interference, sensor lag
+- Calling `get_temperature()` directly returns **one raw sample**
+- The result is jittery and unreliable output
+- `sleep()` is a workaround, not a fix - it slows the system without filtering bad data
 
-### Simple Factory
+### What we actually need
 
-- `SensorFactory.create_sensor(config)` reads `config.json` and wraps two sensors in `FallbackTemperatureSensor`
-  - if primary returns `None`, it tries secondary sensor for redundancy
-- `main.py` only imports `SensorFactory`
-
----
-
-## Adapter & Simple Factory - Result & Issue
-
-### Result
-
-- Object creation fully isolated from `main.py`
-- `main.py` just calls `sensor.get_temperature()`
-- No hardware knowledge in the application layer
-
-### But...
-
-- The factory is multitasking
-  - It creates sensors **AND** owns the fallback logic
-- The adapters are multitasking
-  - They read hardware **AND** handle retries
+- Collect **multiple samples** over time into a buffer
+- Apply a **filter** to produce a stable, meaningful value
+- Keep the filtering logic **swappable** - different situations call for different strategies
 
 ---
 
-## Decorator Pattern - Why
+<!-- _class: tinytext -->
 
-### What is the Decorator Pattern?
+## The Solution - SmartSensor + Strategy Pattern
 
-- Wraps an existing object to add **new** behaviour
-  - without modifying it
-- Each decorator has **ONLY** one responsibility
-  - seperation of concerns
-- Decorators implement the **same** interface as what they wrap
-  - interchangeable
+### SmartSensor
 
-### Why this fixes our problem
+A new wrapper that sits **above the adapter layer**:
 
-- Retry logic moves out of the adapters into `RetryDecorator`
-  - adapters only read hardware now, **LESS** logic
-- Fallback logic moves out of the factory into `FallbackDecorator`
-  - **LESS** logic
-- Both decorators wrap any `TemperatureSensor` — not tied to specific hardware
+- Wraps any object implementing `get_temperature()` - no existing code modified
+- Maintains a **sliding window buffer** - default 10 samples, FIFO
+- Records the **timestamp** of each measurement to ensure correct sampling frequency
+- Implements `get_temperature()` itself - fully compatible with existing decorators and fallback
 
----
+### Strategy Pattern
 
-## Decorator Pattern - Implementation
-
-### Summary
-
-- `RetryDecorator` : wraps any `TemperatureSensor`, retries up to **N** times before returning `None`
-- `FallbackDecorator` : takes a **list** of sensors, tries each one in order until it gets a reading
-- Adapters **stripped** of retry logic
-
-### Result
-
-- Factory just assembles everything together
-- `main.py` unchanged
-  - still just calls `sensor.get_temperature()`
-- Adding a new sensor is **easy**, just add to the list
+- A `FilterStrategy` interface decouples **filtering logic** from **sensor logic**
+- `SmartSensor` delegates all math to whichever strategy is injected into it
+- `SensorFactory` injects the chosen `FilterStrategy` at creation time - composition over hardcoding
 
 ---
 
-## Why Retry and Fallback are Separate Decorators
+<!-- _class: tinytext -->
 
-- Retry and Fallback are **two different responsibilities**
+## FilterStrategy - Three Implementations
 
-- `RetryDecorator` only checks for reading from a sensor up to **N** times
-- `FallbackDecorator` only moves to next sensor in the list
-- If combined, would lead to multitasking which violates SRP
+| Strategy        | Logic                                   | Use Case                       |
+| --------------- | --------------------------------------- | ------------------------------ |
+| `MeanFilter`    | Arithmetic average of the buffer        | General smoothing of noise     |
+| `MedianFilter`  | Sort buffer, return the middle value    | Removing spikes and outliers   |
+| `RawPassFilter` | Return the most recent sample unchanged | Debugging or low-latency needs |
 
----
+### Why this is the Strategy Pattern
 
-## How the Architecture Changed
-
-### Before
-
-- Retry logic lived inside each adapter in `adapters.py`
-- Fallback logic lived inside the factory as `FallbackTemperatureSensor`
-
-### After
-
-- Adapters only read hardware, **LESS** logic
-- `RetryDecorator` wraps any sensor and handles retries
-- `FallbackDecorator` wraps a list of sensors and handles fallback
-- Factory **only** assembles
+- All three implement the same `FilterStrategy` interface
+- `SmartSensor` doesn't know or care which one it holds
+- Swapping the filter **does not change** `SmartSensor`, the adapters, or `main.py`
 
 ---
 
-## How SRP is Satisfied
+## Design Constraints
 
-- `DHTAdapter` / `ADSAdapter` : **read hardware**
-- `RetryDecorator` : **retry on failure**
-- `FallbackDecorator` : **try next sensor on failure**
-- `SensorFactory` : **assemble the object**
-- `main.py` : **read and print temperature**
+- **Non-breaking** - `DHTAdapter` and `ADSAdapter` are not modified; they still return raw data
+- **No throttling** - `sleep()` calls removed; `SmartSensor` is fast and non-blocking
+- **Composition** - `SensorFactory` injects the `FilterStrategy` into `SmartSensor` at creation time
+- **Interface stability** - `SmartSensor` implements `get_temperature()`, so nothing upstream changes
+
+---
+
+## Architectural Flow
+
+1. `SensorFactory` creates the physical sensor and its adapter
+2. Factory wraps the adapter in `SmartSensor` and injects a `MedianFilter`
+3. Factory wraps `SmartSensor` in `FallbackDecorator`
+4. `main.py` calls `get_temperature()` on the top-level decorator
+5. `SmartSensor` pulls a raw sample, updates the sliding window buffer, returns the filtered result
 
 ---
 
 ## Diagrams
 
-Please refer to Diagrams folder as some are too large to put in this `README.md` file. The diagrams consist of:
+Please refer to the Diagrams folder as some are too large to include here. The diagrams consist of:
 
 - Activity Diagram
 - Class Diagram
