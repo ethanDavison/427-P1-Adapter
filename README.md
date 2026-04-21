@@ -2,141 +2,109 @@
 marp: true
 theme: default
 paginate: true
-backgroundColor: #676767
-color: #eaeaea
+footer: "Software Architecture Presentations - Object Creation & Access Control"
 style: |
-  section {
-    font-family: 'Consolas', monospace;
-    background-color: #1e1e2e;
-    padding: 40px 60px;
+  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap");
+
+  :root {
+  font-family: "Work Sans Regular", Arial;
+  --main-color: #2c3e50;
+  --text-color: #2c3e50;
+  --bg-color-alt: #ffffff;
+  --mark-background: #aed6f1;
   }
-  h1 { color: #c0caf5; font-size: 2em; }
-  h2 { color: #c0caf5; border-bottom: 2px solid #414868; padding-bottom: 8px; }
-  h3 { color: #a9b1d6; }
-  code { background: #24283b; padding: 2px 8px; border-radius: 4px; color: #7aa2f7; }
-  pre { background: #24283b; border-left: 4px solid #414868; padding: 16px; border-radius: 8px; }
-  strong { color: #7aa2f7; }
-  em { color: #a9b1d6; }
+
+  section {
+  background-color: #ffffff;
+  background-size: 20px 20px;
+  background-image:
+    linear-gradient(#2c3e5012 1px, transparent 1px),
+    linear-gradient(to right, #2c3e5012 1px, #2c3e500a 1px);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: var(--text-color);
+  }
+
+  header {
+    font-size: 0.7em;
+    color: var(--text-color);
+    border-bottom: 1px solid #2c3e50;
+  }
+
+  footer {
+    font-size: 0.7em;
+    color: var(--text-color);
+    border-top: 1px solid #2c3e50;
+  }
+
+  code {
+    background-color: #d5d8dc;
+    font-size: 0.9em;
+  }
+
+  pre {
+    background-color: #d5d8dc;
+  }
+
+  blockquote {
+    background: #d5d8dc;
+    border-left: 10px solid var(--main-color);
+    margin: 0.5em;
+    padding: 0.5em;
+  }
+
+  mark {
+    background-color: #5dade2;
+    padding: 0 2px 2px;
+  }
+
+  section::after {
+    font-size: 0.75em;
+    content: attr(data-marpit-pagination) " / " attr(data-marpit-pagination-total);
+    color: var(--text-color);
+  }
+
+  table {
+    display: block;
+    margin: 0 auto;
+  }
+
+  th {
+    background-color: #34495e;
+    color: white;
+  }
+
+  /* <!-- _class: tinytext --> */
+  /* Makes p, ul, and blockquote text smaller to fit more text on a slide */
+  section.tinytext > p,
+  section.tinytext > ul,
+  section.tinytext > blockquote {
+    font-size: 0.65em;
+  }
+
+  img[alt~="center"] {
+    display: block;
+    margin: 0 auto;
+  }
 ---
 
 # Temperature Sensor System
 
-## Adapter + Factory + Decorator + Observer
+## Adapter + Factory + Decorator + Strategy + Observer
 
 **Using DHT11 and ADS sensors to read temperature from a Raspberry Pi**
 
 ---
 
-## Previous Project - Adapter & Simple Factory Summary
-
-### Adapter Pattern
-
-- `DHTAdapter` and `ADSAdapter` both implement `get_temperature()` via the shared `TemperatureSensor` base class
-- Each adapter retries up to 3 times before returning `None`
-- `main.py` talks to either sensor the same way
-
-### Simple Factory
-
-- `SensorFactory.create_sensor(config)` reads `config.json` and wraps two sensors in `FallbackTemperatureSensor`
-  - if primary returns `None`, it tries secondary sensor for redundancy
-- `main.py` only imports `SensorFactory`
-
----
-
-## Adapter & Simple Factory - Result & Issue
-
-### Result
-
-- Object creation fully isolated from `main.py`
-- `main.py` just calls `sensor.get_temperature()`
-- No hardware knowledge in the application layer
-
-### But...
-
-- The factory is multitasking
-  - It creates sensors **AND** owns the fallback logic
-- The adapters are multitasking
-  - They read hardware **AND** handle retries
-
----
-
-## Decorator Pattern - Why
-
-### What is the Decorator Pattern?
-
-- Wraps an existing object to add **new** behaviour
-  - without modifying it
-- Each decorator has **ONLY** one responsibility
-  - separation of concerns
-- Decorators implement the **same** interface as what they wrap
-  - interchangeable
-
-### Why this fixes our problem
-
-- Retry logic moves out of the adapters into `RetryDecorator`
-  - adapters only read hardware now, **LESS** logic
-- Fallback logic moves out of the factory into `FallbackDecorator`
-  - **LESS** logic
-- Both decorators wrap any `TemperatureSensor` — not tied to specific hardware
-
----
-
-## Decorator Pattern - Implementation
-
-### Summary
-
-- `RetryDecorator` : wraps any `TemperatureSensor`, retries up to **N** times before returning `None`
-- `FallbackDecorator` : takes a **list** of sensors, tries each one in order until it gets a reading
-- Adapters **stripped** of retry logic
-
-### Result
-
-- Factory just assembles everything together
-- `main.py` unchanged
-  - still just calls `sensor.get_temperature()`
-- Adding a new sensor is **easy**, just add to the list
-
----
-
-## Why Retry and Fallback are Separate Decorators
-
-- Retry and Fallback are **two different responsibilities**
-
-- `RetryDecorator` only checks for reading from a sensor up to **N** times
-- `FallbackDecorator` only moves to next sensor in the list
-- If combined, would lead to multitasking which violates SRP
-
----
-
-## How the Architecture Changed (Decorator)
-
-### Before
-
-- Retry logic lived inside each adapter in `adapters.py`
-- Fallback logic lived inside the factory as `FallbackTemperatureSensor`
-
-### After
-
-- Adapters only read hardware, **LESS** logic
-- `RetryDecorator` wraps any sensor and handles retries
-- `FallbackDecorator` wraps a list of sensors and handles fallback
-- Factory **only** assembles
-
----
-
-## How SRP is Satisfied (Decorator Phase)
-
-- `DHTAdapter` / `ADSAdapter` : **read hardware**
-- `RetryDecorator` : **retry on failure**
-- `FallbackDecorator` : **try next sensor on failure**
-- `SensorFactory` : **assemble the object**
-- `main.py` : **read and print temperature**
-
----
-
 ## Observer Pattern - Why
 
-### The problem after Decorator
+### The problem after Strategy
 
 - The sensor system works well **on a single device**
 - But temperature data is locked inside the Pi
@@ -146,10 +114,12 @@ style: |
 ### What we need
 
 - A way to **broadcast** data to any number of receivers
-- Receivers should be **independent** — adding one should not change anything else
+- Receivers should be **independent** - adding one should not change anything else
 - The Pi should not know or care **who** is listening
 
 ---
+
+ <!-- _class: tinytext -->
 
 ## Observer Pattern - What it is
 
@@ -163,17 +133,19 @@ style: |
 
 - The Brain (Subject) can push readings to any number of consumers
 - Adding a new consumer (logger, database, second dashboard) requires **zero changes** to the Brain
-- The Pi only knows about the Brain — it never knows who is ultimately receiving the data
+- The Pi only knows about the Brain - it never knows who is ultimately receiving the data
 
 ---
+
+ <!-- _class: tinytext -->
 
 ## Observer Pattern - Implementation
 
 ### Components
 
 - `ObserverInterface` : base class with `update(data: dict)`
-- `Brain` : the Subject — holds `_observers` list, implements `attach`, `detach`, `notify`
-- `SocketObserver` : a concrete Observer — wraps a TCP socket and forwards data over the network
+- `Brain` : the Subject - holds `_observers` list, implements `attach`, `detach`, `notify`
+- `SocketObserver` : a concrete Observer - wraps a TCP socket and forwards data over the network
 - `WebObserverClient` : connects to the Brain, receives pushed updates, stores latest readings
 
 ### The key design decision
@@ -188,10 +160,12 @@ style: |
 
 ### Two ports, two roles
 
-- **Port 5000** — Pi producers connect here and send temperature readings
-- **Port 5001** — Observers connect here and receive pushed updates
+- **Port 5000** - Pi producers connect here and send temperature readings
+- **Port 5001** - Observers connect here and receive pushed updates
 
-### Connection flow
+---
+
+## Connection flow
 
 1. Web container connects to Brain on port 5001
 2. Brain wraps the socket in `SocketObserver` and calls `attach(observer)`
@@ -201,6 +175,8 @@ style: |
 6. Web container receives the line, updates its `latest_data` dict, and the dashboard reflects the new reading
 
 ---
+
+<!-- _class: tinytext -->
 
 ## Concurrency - How Multiple Clients Are Handled
 
@@ -218,7 +194,7 @@ style: |
 ### Result
 
 - A slow Pi does not block other Pis
-- A slow or dead observer does not block `notify` — the exception is caught and the observer is removed
+- A slow or dead observer does not block `notify` - the exception is caught and the observer is removed
 
 ---
 
@@ -229,9 +205,11 @@ style: |
 - **Malformed JSON from Pi** : caught with `json.JSONDecodeError`, message discarded, Pi connection stays open
 - **Pi disconnects** : `_handle_pi` exits its loop cleanly when the socket closes
 - **Observer disconnects** : `SocketObserver.update` raises on a broken socket; `notify` catches this, marks the observer dead, and removes it after the loop
-- **Web container restarts** : it reconnects to Brain on port 5001 with a retry loop — the Brain is unaffected and simply gets a new `attach` call
+- **Web container restarts** : it reconnects to Brain on port 5001 with a retry loop - the Brain is unaffected and simply gets a new `attach` call
 
 ---
+
+ <!-- _class: tinytext -->
 
 ## How Decoupling is Maintained
 
@@ -245,7 +223,7 @@ style: |
 
 - Brain depends only on `ObserverInterface.update(data)`
 - Brain does not import or reference `WebObserverClient`
-- To add a new observer type (e.g. a database logger), create a new container that connects on port 5001 — no changes to `brain.py`
+- To add a new observer type (e.g. a database logger), create a new container that connects on port 5001 - no changes to `brain.py`
 
 ### Open/Closed Principle satisfied
 
@@ -254,27 +232,12 @@ style: |
 
 ---
 
-## Full SRP Summary (All Phases)
-
-- `DHTAdapter` / `ADSAdapter` : **read hardware**
-- `RetryDecorator` : **retry on failure**
-- `FallbackDecorator` : **try next sensor on failure**
-- `SensorFactory` : **assemble the sensor stack**
-- `main.py` (Pi) : **read sensor and send to Brain**
-- `ObserverInterface` : **define the observer contract**
-- `Brain` : **receive data and distribute to observers**
-- `SocketObserver` : **forward data over a network socket**
-- `WebObserverClient` : **receive updates and store latest readings**
-- `DashboardHandler` : **serve the HTTP dashboard**
-
----
-
 ## Diagrams
 
 Please refer to the Diagrams folder as some are too large to put in this file. The diagrams consist of:
 
-- Activity Diagram — shows full flow from sensor read to dashboard update
-- Class Diagram — includes all sensor, decorator, and observer classes
-- Sequence Diagram — shows Observer registration and full data push flow
-- State Diagram — Pi reading loop, Brain subject states, and Web observer states
-- Use Case Diagram — all three actors (Pi, Brain, Web) and their responsibilities
+- Activity Diagram - shows full flow from sensor read to dashboard update
+- Class Diagram - includes all sensor, decorator, strategy, and observer classes
+- Sequence Diagram - shows Observer registration and full data push flow
+- State Diagram - Pi reading loop, Brain subject states, and Web observer states
+- Use Case Diagram - all three actors (Pi, Brain, Web) and their responsibilities
